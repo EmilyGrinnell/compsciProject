@@ -1,2 +1,3 @@
 node_modules/
-database.db
+src/database.db
+src/buildTestDatabase.js
