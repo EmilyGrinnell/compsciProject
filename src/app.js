@@ -1,78 +1,78 @@
+const cookieParser = require("cookie-parser");
 const express = require("express");
-const request = require("request");
 const sqlite3 = require("sqlite3").verbose();
+const fs = require("fs");
 const path = require("path");
+const util = require("util");
+const apiModule = require("./API.js");
 const buildDatabase = require("./buildDatabase.js");
 const app = express();
-const db = new sqlite3.Database(path.resolve(__dirname, "./database.db"));
+const db = new sqlite3.Database(path.resolve(__dirname, "./config/database.db"));
+const cfgFolder = `${__dirname.substring(__dirname.lastIndexOf("\\")).replace("\\", "/")}/config/`;
+//Import required dependencies, create an express app object and create a connection to the database
+
+if (!fs.existsSync(path.resolve(__dirname, "./config/jwt_key.txt"))) return console.log(`JWT key file could not be found. Please place a key to be used for generating access tokens in jwt_key.txt in the ${cfgFolder} folder`);
+if (!fs.existsSync(path.resolve(__dirname, "./config/steam_api_keys.txt"))) return console.log(`Steam API key file could not be found. Please place at least one (or more, if separated by a new line) API key from https://steamcommunity.com/dev/apikey in steam_api_keys.txt in the ${cfgFolder} folder`);
+//Ensure JSON web token key and Steam API key files exist
+
+const key = fs.readFileSync(path.resolve(__dirname, "./config/jwt_key.txt"), "utf-8").trim();
+const apiKeys = fs.readFileSync(path.resolve(__dirname, "./config/steam_api_keys.txt"), "utf-8").split("\n").map(line => line.split("//")[0].trim()).filter(line => line);
+//Read key files, allowing for comments in the Steam API key file and ignoring empty lines
+
+if (!key) return console.log(`JWT key file is empty. Please place a key to be used for generating access tokens in jwt_key.txt in the ${cfgFolder} folder`);
+if (!apiKeys.length) return console.log(`No Steam API keys were found in the Steam API key file. Please place at least one (or more, if separated by a new line) API key from https://steamcommunity.com/dev/apikey in steam_api_keys.txt in the ${cfgFolder} folder`);
+//Ensure a JWT key and at least one Steam API key have been provided
+
+const api = new apiModule(apiKeys);
+//Create an API object to make requests to the Steam API
+
+db.run = util.promisify(db.run);
+db.get = util.promisify(db.get);
+db.all = util.promisify(db.all);
+db.close = util.promisify(db.close);
+//Allow database functions to be awaited in an async function
+
+app.use(require("body-parser").urlencoded({extended : true}));
+app.use(express.json());
+app.use(cookieParser());
+app.use(express.static(path.resolve(__dirname, "./public/")));
+//Use middleware to parse request bodies and cookies, and host public files
 
 app.get("/", (req, res) => {
     res.redirect("/html/index.html");
     //Redirect to index page
 });
 
-app.get("/authenticate", (req, res) => {
-    request({
-        url : "https://steamcommunity.com/openid/login",
-        method : "POST",
-        form : Object.assign(req.query, {
-            "openid.mode" : "check_authentication",
-        }),
-        //Send request to Steam to verify the login is valid
-    }, (err, r, body) => {
-        if (err) {
-            res.status(400);
-            res.send(err);
-            res.end();
-            //Handle any errors
-        }
-        else if (body.includes("is_valid:true")) {
-            let id = req.query["openid.claimed_id"].match(/\d{17}/)[0];
+let endpoints = fs.readdirSync(path.resolve(__dirname, "./endpoints/"));
+//Read endpoints directory
 
-            db.get(`SELECT * FROM Users WHERE steamIds LIKE "%${id}%"`, (err, row) => {
-                if (err) {
-                    res.status(500);
-                    res.send("database_error");
-                }
-                else if (row) {
-                    res.status(200);
-                    res.send(row.username);
-                }
-                else {
-                    res.status(401);
-                    res.send("no_linked_steam");
-                    //Check the user's Steam account is linked to an account in the database
-                }
-    
-                res.end();
-            });
-        }
-        else {
-            res.status(401);
-            res.send("invalid_login");
-            res.end();
-            //Handle invalid login
-        }
+for (let x = 0; x < endpoints.length; x ++) {
+    let endpoint = require(`./endpoints/${endpoints[x]}`);
+    //Import the endpoint file
+
+    //app[endpoint.method](`/${endpoints[x].substring(0, endpoints[x].lastIndexOf("."))}`, (req, res) => endpoint(req, res, db, key, api));
+    app[endpoint.method](`/${endpoints[x].substring(0, endpoints[x].lastIndexOf("."))}`, (req, res) => {
+        delete require.cache[require.resolve(`./endpoints/${endpoints[x]}`)];
+        endpoint = require(`./endpoints/${endpoints[x]}`);
+        endpoint(req, res, db, key, api);
     });
-});
+    //FOR TESTING: RELOAD EACH ENDPOINT BEFORE RUNNING FUNCTION TO ALLOW FOR CHANGES TO ENDPOINT SCRIPTS WITHOUT RESTARTING APP
 
-app.post("/register", (req, res) => {
-    console.log(req.body);
-});
+    //Register each endpoint and pass requests to function defined in the corresponding file
+}
 
-app.use(express.static(path.resolve(__dirname, "./public/")));
-//Host public files
+(async () => {
+    await db.run("SELECT ID FROM Users").catch(async () => {
+        let {message} = await buildDatabase(db).catch(e => e) || {};
+        //Try to create the database table and catch any errors doing so
 
-db.run("SELECT * FROM Users", async err => {
-    if (err) {
-        let failed = await buildDatabase(db).catch(e => e);
-
-        if (failed) {
-            console.log("The user database could not be found and an error occurred while trying to generate it");
-            return db.close(() => process.exit(1));
+        if (message) {
+            console.log(`The user database could not be found and the following error occurred while trying to generate it: ${message}`);
+            await db.close();
+            process.exit(1);
             //Close the database connection then exit with an error code of 1
         }
-    }
+    });
 
     (function findPort(port) {
         app.listen(port)
@@ -84,4 +84,4 @@ db.run("SELECT * FROM Users", async err => {
             .on("listening", () => console.log(`Listening on port ${port}`));
         //Try to start listening on port 8000, and switch to the next port recursively until one is not in use
     })(8000);
-});
+})();

@@ -1,7 +1,13 @@
-(async () => {
-    let response = await fetch(`${document.location.origin}/authenticate${document.location.search}`);
+$(document).ready(() => {
+    $("#account_link").attr("href", `${document.location.origin}/html/account.html`);
 
-    if (response.status != 200) return document.write(await response.text());
-
-    document.write(await response.text());
-})();
+    $.ajax(`${document.location.origin}/authenticate${document.location.search}`, {
+        xhrFields : {
+            withCredentials : true,
+        },
+        success : () => document.location.href = document.location.origin,
+        error : e => {
+            [...$(".error")].map(element => $(element))[["request_error", "database_error", "no_linked_steam", "invalid_login"].indexOf(e.responseText)].show();
+        },
+    });
+});

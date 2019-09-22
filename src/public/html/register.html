@@ -5,10 +5,18 @@
 <script src="../js/register.js"></script>
 
 <div id="register_form_div">
-    <form method="POST" action="../register" id="register_form">
-        <input type="text" name="username">
-        <input type="password" name="password">
-        <input type="confirm_password">
-        <input type="submit" disabled="true">
+    <form id="register_form">
+        Username
+        <br><input class="field" type="text" name="username" id="username"><br>
+        <span class="validate" id="username_validate">Username must be between 6 and 20 characters<br></span>
+        <span class="validate" id="username_available">Username is not available<br></span>
+        Password
+        <br><input class="field" type="password" name="password" id="password"><br>
+        <span class="validate" id="password_validate">Password must be between 6 and 20 characters<br></span>
+        Confirm password
+        <br><input class="field "type="password" id="confirm_password"><br>
+        <span class="validate" id="confirm_password_validate">Passwords do not match<br></span>
+        <br><input type="submit" id="submit"><br>
+        <span class="validate" id="database_error"><br>A database error occurred and your account could not be registered</span>
     </form>
 </div>
