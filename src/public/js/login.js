@@ -20,13 +20,18 @@ $(document).ready(() => {
             method : "POST",
             xhrFields : {
                 withCredentials : true,
+                //Avoid CORS blocking errors
             },
             data : {
                 username : $("#username").val(),
                 password : $("#password").val(),
+                //Send username and password in request body
             },
             success : () => document.location.href = document.location.origin,
+            //Redirect user back to index page on successful login
             error : e => document.write(e.responseText),
+            //Display error
+            //TODO: Add actual error message spans
         });
     });
 });

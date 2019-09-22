@@ -5,6 +5,7 @@ module.exports = async function({query : {id}}, res, db, key, api) {
     await api.makeRequest("ISteamUserStats/GetUserStatsForGame/v0002", {
         appid : 730,
         steamid : id,
+        //App ID 730 is CS:GO, steamid is the Steam ID the user wishes to retrieve stats for
     })
         .then((r, body) => {
             switch (r.statusCode) {
