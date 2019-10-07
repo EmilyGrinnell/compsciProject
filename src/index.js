@@ -3,6 +3,9 @@ const dependencies = Object.keys(require("../package.json").dependencies);
 //Get required packages from package.json file
 
 try {
+    require("./lib.js");
+    //Define sorting and searching algorithms for arrays
+
     for (let x = 0; x < dependencies.length; x ++) require(dependencies[x]);
     //Check all dependencies are installed
 
@@ -30,4 +33,6 @@ catch (e) {
         else console.log(`An error occurred whilst installing packages with Yarn:\n${stderr}`);
         //Run app if installation with Yarn is successful
     });
+    
+    //TODO: remove yarn attempt
 }

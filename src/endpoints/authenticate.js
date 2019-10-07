@@ -1,7 +1,7 @@
 const request = require("request");
 const jwt = require("jsonwebtoken");
 
-module.exports = function(req, res, db, key) {
+module.exports = function({req, res, db, key}) {
     request({
         url : "https://steamcommunity.com/openid/login",
         method : "POST",

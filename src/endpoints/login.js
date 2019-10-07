@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 
-module.exports = async function({body : {username = "", password = ""}}, res, db, key) {
+module.exports = async function({req : {body : {username = "", password = ""}}, res, db, key}) {
     await db.get(`SELECT ID, salt, password FROM Users WHERE LOWER(username)="${username.toLowerCase()}"`)
         //Fetch the ID, salt and encrypted password of the first user in the database with a matching username (ignoring cases)
 

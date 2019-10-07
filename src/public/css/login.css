@@ -5,3 +5,8 @@
 #steam_login {
     float : right;
 }
+
+.validate {
+    color : red;
+    display : none;
+}

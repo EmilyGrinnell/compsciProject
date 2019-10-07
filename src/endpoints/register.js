@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 
-module.exports = async function({body : {username = "", password = ""}}, res, db, key) {
+module.exports = async function({req : {body : {username = "", email = "", password = ""}}, res, db, key}) {
     if (username.length <= 6 || username.length >= 20) {
         res.status(400);
         res.send("invalid_username");
@@ -12,8 +12,13 @@ module.exports = async function({body : {username = "", password = ""}}, res, db
         res.send("invalid_password");
         //Check the password is a valid length
     }
+    else if (!/^\w+@\w+\.\w+$/.test(email)) {
+        res.status(400);
+        res.send("invalid_email");
+        //Check the email address is valid
+    }
     else {
-        await db.all("SELECT ID, username FROM Users ORDER BY ID DESC")
+        await db.all("SELECT ID, username, email FROM Users")
             //Try and find another user with the same username, ignoring case to ensure duplicate usernames are not allowed
             //Also get the current highest registered ID
 
@@ -23,18 +28,31 @@ module.exports = async function({body : {username = "", password = ""}}, res, db
                     res.send("username_taken");
                     //Respond with an error if the requested username is already in use by another user
                 }
+                else if (rows.findIndex(row => row.email.toLowerCase() == email.toLowerCase()) + 1) {
+                    res.status(400);
+                    res.send("email_taken");
+                    //Respond with an error if the requested email is already in use by another user
+                }
                 else {
-                    let newID = (rows[rows.length - 1] || {ID : -1}).ID + 1
+                    let newID;
                     let salt = crypto.randomBytes(8).toString("hex");
+                    let ids = rows.map(row => row.ID);
                     //Increment ID of last registered user and generate a random 64-bit salt to hash the password with
 
-                    await db.run(`INSERT INTO USERS Values (
+                    do {
+                        newID = Math.floor((Math.random() * 9 + 1) * Math.pow(10, 15));
+                        //Generate a random 15-digit ID
+                    } while(ids.binarySearch(newID) + 1);
+                    //Ensure the randomly generated ID is not already in use
+                    //If it is, recursively generate new IDs until a free one is found
+
+                    await db.run(`INSERT INTO Users Values (
                         ${newID},
                         "${username}",
                         "${crypto.createHmac("sha512", salt).update(password).digest("hex")}",
+                        "${email}",
                         "${salt}",
-                        0,
-                        ""
+                        0
                     )`)
                         //Add the user to the database
 
@@ -44,18 +62,13 @@ module.exports = async function({body : {username = "", password = ""}}, res, db
                                 httpOnly : true,
                             });
                             //Sign an access token and store it in a cookie
-                        })
-                        .catch(() => {
-                            res.status(500);
-                            res.send("database_error");
-                            //Handle any errors while checking the database to get the current highest ID
                         });
                 }
             })
             .catch(() => {
                 res.status(500);
                 res.send("database_error");
-                //Handle any errors while checking the database for existing users with the requested username
+                //Handle any errors while running database commands
             });
     }
 

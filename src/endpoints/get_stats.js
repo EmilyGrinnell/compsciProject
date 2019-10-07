@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 
-module.exports = async function({query : {id}}, res, db, key, api) {
+module.exports = async function({req : {query : {id}}, res, api}) {
     await api.makeRequest("ISteamUserStats/GetUserStatsForGame/v0002", {
         appid : 730,
         steamid : id,
@@ -11,10 +11,6 @@ module.exports = async function({query : {id}}, res, db, key, api) {
             switch (r.statusCode) {
                 case 200:
                     //Valid request
-    
-                    if (!fs.existsSync(path.resolve(__dirname, "../json/"))) fs.mkdirSync(path.resolve(__dirname, "../json/"));
-                    fs.writeFileSync(path.resolve(__dirname, `../json/${id}.json`), JSON.stringify(body, null, 4));
-                    //Ensure folder exists for JSON stat data and then save the data to a file there
     
                     res.status(200);
                     return res.send(body);

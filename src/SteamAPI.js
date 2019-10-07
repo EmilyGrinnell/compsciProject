@@ -1,6 +1,6 @@
 const request = require("request");
 
-class API {
+class SteamAPI {
     constructor(apiKeys) {
         this.apiKeys = apiKeys;
         this.currentKey = 0;
@@ -15,7 +15,7 @@ class API {
     makeRequest(path, query) {
         return new Promise((resolve, reject) => {
             request({
-                url : `https://api.steampowered.com/${path}${API.formQueryString(Object.assign(query, {
+                url : `https://api.steampowered.com/${path}${SteamAPI.formQueryString(Object.assign(query, {
                     key : this.apiKeys[this.currentKey],
                 }))}`,
                 //Generate the URL with the requested query and add the API key
@@ -39,6 +39,6 @@ class API {
     }
 }
 
-module.exports = API;
+module.exports = SteamAPI;
 //API class used to recursively make requests with different API keys until a valid one is found
 //Steam allows 100,000 requests per day so it should never need to use any but the first one, but allow for an unlimited amount to be used
